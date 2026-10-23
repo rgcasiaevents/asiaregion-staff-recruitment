@@ -131,7 +131,7 @@ function loadAvailability(){
  document.head.appendChild(script);
 }
 window.addEventListener('message',event=>{
- if(!pending || event.source !== pending.frame.contentWindow)return;
+ if(!pending)return;
  const data=event.data;
  if(!data||data.source!=='rgc-asia-staff'||data.nonce!==pending.nonce)return;
  clearTimeout(pending.timer);pending.frame.remove();pending.form.remove();pending=null;setBusy(false);
@@ -156,7 +156,7 @@ form.addEventListener('submit',e=>{
  const post=document.createElement('form');post.method='POST';post.action=API_URL;post.target=frame.name;post.style.display='none';
  const input=document.createElement('input');input.name='payload';input.value=JSON.stringify(payload);post.appendChild(input);document.body.appendChild(post);
  setBusy(true);showStatus('Submitting your application…',false);
- const timer=setTimeout(()=>{if(!pending||pending.nonce!==nonce)return;frame.remove();post.remove();pending=null;setBusy(false);showStatus('No confirmation was received. Please check with the recruitment team before submitting again to avoid duplicates.');},25000);
+ const timer=setTimeout(()=>{if(!pending||pending.nonce!==nonce)return;frame.remove();post.remove();pending=null;setBusy(false);showStatus('We could not verify the submission. Please contact the recruitment team before trying again.');},25000);
  pending={nonce,frame,form:post,timer};post.submit();
 });
 refreshChannels();loadAvailability();
