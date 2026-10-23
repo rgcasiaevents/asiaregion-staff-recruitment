@@ -131,11 +131,11 @@ function loadAvailability(){
  document.head.appendChild(script);
 }
 window.addEventListener('message',event=>{
- if(!pending||!/^https:\/\/(?:[a-z0-9-]+\.)*(?:googleusercontent\.com|google\.com)$/.test(event.origin))return;
+ if(!pending || event.source !== pending.frame.contentWindow)return;
  const data=event.data;
  if(!data||data.source!=='rgc-asia-staff'||data.nonce!==pending.nonce)return;
  clearTimeout(pending.timer);pending.frame.remove();pending.form.remove();pending=null;setBusy(false);
- if(data.ok){showStatus('Application submitted successfully. Thank you for applying to RGC Asia!',false);form.reset();$('otherExperienceWrap').classList.add('hidden');refreshChannels();loadAvailability();}
+ if(data.ok){showStatus('✓ SUBMISSION SUCCESSFUL! Your staff application has been received by RGC Asia. Thank you for applying!',false);form.reset();$('otherExperienceWrap').classList.add('hidden');refreshChannels();loadAvailability();}
  else {showStatus(data.message||'Your application could not be submitted. Please try again.');loadAvailability();}
 });
 form.addEventListener('submit',e=>{
