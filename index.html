@@ -130,13 +130,42 @@ function loadAvailability(){
  script.src=API_URL+(API_URL.includes('?')?'&':'?')+'action=config&callback='+encodeURIComponent(cb)+'&_='+Date.now();
  document.head.appendChild(script);
 }
+// Independently verify the recorded submission through Apps Script JSONP.
+// This avoids relying on cross-origin messages from Google's sandboxed iframe.
+function checkSubmission(nonce){
+ if(!pending||pending.nonce!==nonce)return;
+ const cb='rgcStaffStatus_'+Date.now()+Math.floor(Math.random()*1000);
+ const script=document.createElement('script');
+ const cleanup=()=>{delete window[cb];script.remove();};
+ window[cb]=data=>{
+   cleanup();
+   if(!pending||pending.nonce!==nonce)return;
+   if(data&&data.ok===true&&!data.pending){
+     finishSubmission({ok:true,nonce});
+   }else if(data&&data.ok===false&&!data.pending){
+     finishSubmission({ok:false,nonce,message:data.message||'Application could not be verified.'});
+   }
+ };
+ script.onerror=cleanup;
+ script.src=API_URL+(API_URL.includes('?')?'&':'?')+
+   'action=status&nonce='+encodeURIComponent(nonce)+'&callback='+encodeURIComponent(cb)+'&_='+Date.now();
+ document.head.appendChild(script);
+}
+function finishSubmission(data){
+ if(!pending||data.nonce!==pending.nonce)return;
+ clearTimeout(pending.timer);clearInterval(pending.poller);
+ pending.frame.remove();pending.form.remove();pending=null;setBusy(false);
+ if(data.ok){
+   form.reset();$('otherExperienceWrap').classList.add('hidden');
+   refreshChannels();loadAvailability();
+   showStatus('✓ SUBMISSION SUCCESSFUL! Your application has been submitted and received by RGC Asia. Thank you!',false);
+ }else showStatus(data.message||'Unable to verify submission. Please contact the recruitment team.');
+}
 window.addEventListener('message',event=>{
  if(!pending)return;
  const data=event.data;
  if(!data||data.source!=='rgc-asia-staff'||data.nonce!==pending.nonce)return;
- clearTimeout(pending.timer);pending.frame.remove();pending.form.remove();pending=null;setBusy(false);
- if(data.ok){showStatus('✓ SUBMISSION SUCCESSFUL! Your staff application has been received by RGC Asia. Thank you for applying!',false);form.reset();$('otherExperienceWrap').classList.add('hidden');refreshChannels();loadAvailability();}
- else {showStatus(data.message||'Your application could not be submitted. Please try again.');loadAvailability();}
+ finishSubmission(data);
 });
 form.addEventListener('submit',e=>{
  e.preventDefault();if(pending)return;status.textContent='';status.className='status';
@@ -156,8 +185,10 @@ form.addEventListener('submit',e=>{
  const post=document.createElement('form');post.method='POST';post.action=API_URL;post.target=frame.name;post.style.display='none';
  const input=document.createElement('input');input.name='payload';input.value=JSON.stringify(payload);post.appendChild(input);document.body.appendChild(post);
  setBusy(true);showStatus('Submitting your application…',false);
- const timer=setTimeout(()=>{if(!pending||pending.nonce!==nonce)return;frame.remove();post.remove();pending=null;setBusy(false);showStatus('We could not verify the submission. Please contact the recruitment team before trying again.');},25000);
- pending={nonce,frame,form:post,timer};post.submit();
+ const timer=setTimeout(()=>{if(!pending||pending.nonce!==nonce)return;clearInterval(pending.poller);frame.remove();post.remove();pending=null;setBusy(false);showStatus('We could not verify this application. Please contact the recruitment team before retrying.');},45000);
+ pending={nonce,frame,form:post,timer,poller:null};post.submit();
+ pending.poller=setInterval(()=>checkSubmission(nonce),2000);
+ setTimeout(()=>checkSubmission(nonce),1200);
 });
 refreshChannels();loadAvailability();
 </script></body></html>
